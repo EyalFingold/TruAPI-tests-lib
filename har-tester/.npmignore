@@ -1,0 +1,10 @@
+*.csv
+*.log
+.idea/*
+bin/*.*
+node_modules/*
+lib/*
+index.js
+*.iml
+*.tgz
+.npmignore

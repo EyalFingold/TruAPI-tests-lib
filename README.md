@@ -10,6 +10,6 @@ TruAPI:
 
 TruAPI tests library:
 ---------------------
-TruAPI tests library is an open source repository intended to provide and share commonlly used tests 
+TruAPI tests library is an open source repository intended to provide and share commonly used tests.
 
-Appriciate any feedback and additonal test samples from all
+Appreciate any feedback and additional test samples from all.

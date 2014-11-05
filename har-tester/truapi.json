@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "test": {
+    "script": "har-tester.js"
+  },
+  "local": {
+    "vuserCount": 5,
+    "policy": {
+      "start": { "type": "allTogether" },
+      "duration": { "type": "iterationBased", "param": 5 },
+      "end": { "type": "allTogether" }
+    }
+  },
+  "transactions": ["requestTest"]
+}
