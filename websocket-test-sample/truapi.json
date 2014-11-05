@@ -1,7 +1,7 @@
 {
   "version": "0.0.0",
   "test": {
-    "script": "websoket-test-sample.js"
+    "script": "websocket-test-sample.js"
   },
   "local": {
     "vuserCount": 1,
@@ -11,6 +11,6 @@
       "end": { "type": "allTogether" }
     }
   },
-  "transactions": ["requestTest"]
+  "transactions": ["websocketTest"]
 }
 
