@@ -14,8 +14,8 @@ TruAPI tests library is an open source repository intended to provide and share 
 
 Appreciate any feedback and additional test samples from all.
 
+1. websocket-test-sample - a simple test that allow you to open web socket connection, echo to server 10 times and close the connection, thus creating a transaction
 
-websocket-test-sample - a simple test that allow you to open web socket connection, echo to server 10 times and close the connection, thus creating a transaction
-har-tester - a test allowing you to navigate in browser in your site, save the results as HAR file, and use this to replay it with StormRunner load on a larger scale.
+2. har-tester - a test allowing you to navigate in browser in your site, save the results as HAR file, and use this to replay it with StormRunner load on a larger scale.
     Currently i am supporting sites which don’t require login (working on adding Basic Authentication and OAUTH capabilities)
     Currently i am supporting running requests in async way similar to browsers (but imitating this assuming all requests are from same domain, need to support this for more than 1 domain)
