@@ -11,11 +11,14 @@ exports = module.exports = function (vuser) {
     var path = require('path');
     var fs = require("fs");
     var vuserId, proxy, urlListFile, urlList;
+    var hosts = [];
 
     /* prepare test data */
     vuserId = vuser.getVUserId();
-    urlListFile = 'har1.har';
+    urlListFile = 'www.ynet.co.il.har';
+    blackListHostsFile = 'black-list.json';
     urlList = {};
+    blackListHosts = {};
     proxy = process.env.http_proxy ? process.env.http_proxy : undefined;
 
     /* init action */
@@ -26,6 +29,9 @@ exports = module.exports = function (vuser) {
         svc.logger.info('load url list from %s', urlListFile);
         try {
             urlList = JSON.parse(loadFromFile(urlListFile)).log.entries;
+            //checkDomains(urlList);
+            var tmpdata = JSON.parse(loadFromFile(blackListHostsFile))
+            blackListHosts = tmpdata.blackListHostNames;
         }
         catch (err) {
             svc.logger.error('Cannot load url list from %s', err, urlListFile);
@@ -39,6 +45,39 @@ exports = module.exports = function (vuser) {
         var file = __dirname + '/' + filename;
         var newdata = fs.readFileSync(file, 'utf8');
         return newdata;
+    }
+
+/*
+    function arrayObjectIndexOf(array,property, value) {
+        for (var i = 0, len = array.length; i < len; i++) {
+            if (array[i][property] === value) return i;
+        }
+        return -1;
+    }
+*/
+
+/*  function checkDomains(urlList)
+    {
+        for (var j = 0; j < urlList.length; j++) {
+            var host = urlList[j].request.headers[arrayObjectIndexOf(urlList[j].request.headers,"name","Host")];
+            var hostsIndex = hosts.indexOf(host.value);
+            if (hostsIndex===-1)
+            {
+                hosts.push(host.value);
+                console.log(host);
+            }
+        }
+    }*/
+
+    function checkBlackList(urlToCheck)
+    {
+        for (var j = 0; j < blackListHosts.length; j++) {
+            if (urlToCheck.indexOf(blackListHosts[j])>=0)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     Array.prototype.get = function(name) {
@@ -65,14 +104,25 @@ exports = module.exports = function (vuser) {
                 'User-Agent': BrowserData.userAgent
             }
         };
-        svc.logger.info('Testing URL %s', urlItem.url);
-        svc.request(reqOpts, function (err, res, body) {
-            if (err) {
-                svc.logger.error('request error %s', err.toString());
-            }
-            /* TODO: add code to check if the results size is similar to recorded one  */
+
+
+
+        if (checkBlackList(urlItem.url))
+        {
+            svc.logger.info('Testing URL %s', urlItem.url);
+            svc.request(reqOpts, function (err, res, body) {
+                if (err) {
+                    svc.logger.error('request error %s', err.toString());
+                }
+                /* TODO: add code to check if the results size is similar to recorded one  */
+                callback(urlCurrentllyProccesed,done,BrowserData);
+            });
+        }
+        else
+        {
+            svc.logger.info('Skipping URL %s', urlItem.url);
             callback(urlCurrentllyProccesed,done,BrowserData);
-        });
+        }
     }
 
     /* main action */
@@ -88,7 +138,6 @@ exports = module.exports = function (vuser) {
             done();
             return;
         }
-
 
         function onCallback(urlCurrentllyProccesed,done,BrowserData,err) {
             if (err) {
@@ -112,9 +161,7 @@ exports = module.exports = function (vuser) {
         }
 
         //* test the first url *//
-
         // starting requests in parallel same as browsers actually behave
-
         var browsersInfo = [
               {borwser: "Firefox 2", threadsPerDomain:2, UserAgent:"Mozilla/5.0 (Windows; Windows NT 5.1; en-US; rv:1.8.1.9) Gecko/20071025 Firefox/2.0.0.9"},
               {borwser: "Firefox 31.0", threadsPerDomain:6, UserAgent:"Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"},
@@ -128,8 +175,6 @@ exports = module.exports = function (vuser) {
               {borwser: "IE 10", threadsPerDomain:8, UserAgent:"Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0"},
               {borwser: "IE 11", threadsPerDomain:13, UserAgent:"Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko"},
               {borwser: "Chrome 37.0", threadsPerDomain:6, UserAgent:"Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36"}]
-
-
         var chosenBrowserID =  Math.floor((Math.random() * (browsersInfo.length-1)) + 1);
         var browsersThreads = browsersInfo[chosenBrowserID]['threadsPerDomain']; //setting as chrome for now
         BrowserData.name = browsersInfo[chosenBrowserID]['borwser'];
