@@ -1,13 +1,6 @@
 {
     "blackListHostNames":  [
-        "dy.ynet.co.il" ,
-        "sf.exposebox.com" ,
-        "server.exposebox.com" ,
-        "images1.ynet.co.il" ,
-        "connect.facebook.net" ,
-        "mediadownload.ynet.co.il" ,
-        "go.calcalist.co.il" ,
-        "www.googletagmanager.com"
+        "somesite.com" ,"somesite2.com"
         ]
 }
 
