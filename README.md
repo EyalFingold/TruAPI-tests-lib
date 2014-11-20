@@ -18,6 +18,8 @@ Appreciate any feedback and additional test samples from all.
 
 2. har-tester - har-tester test is meant to simulate load on server based on har(HTTP Archive format) files, that can be created using developers tools of commonly used browsers.  Current implementation take into consideration the following:
 Url; Method; User Agent
+
 Current implementation simulate several concurrent connections per host, in a similar manner to common browsers.
 Browsers are randomly chosen
+
 Current implementation support black list - add block hosts to black-list.json
