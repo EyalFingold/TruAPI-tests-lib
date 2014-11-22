@@ -1,25 +1,21 @@
 /*
-har-tester test is meant to simulate load on server based on har(HTTP Archive format) files, that can be created using developers tools of commonly used browsers.
+ har-tester test is meant to simulate load on server based on har(HTTP Archive format) files, that can be created using developers tools of commonly used browsers.
 
-Current implementation take into consideration the following:
-- Url
-- Method
-- User Agent
+ Current implementation take into consideration the following:
+ - Url
+ - Method
+ - User Agent
 
-Current implementation simulate several concurrent connections per host, in a similar manner to common browsers.
-Browsers are randomly chosen
+ Current implementation simulate several concurrent connections per host, in a similar manner to common browsers.
+ Browsers are randomly chosen
 
-Current implementation support black list - add block hosts to black-list.json
-*/
-
+ Current implementation support black list - add block hosts to black-list.json
+ */
 
 //TODO: add payload in case of POST - currently empty post
-//TODO: add headers (not including cookies and special headers)
 //TODO: add login sample using http basic authentication
 //TODO: add login using OTP
-//TODO:  add login using form submission and cookie persistence
-//TODO: add send proper user-agent per browser
-//TODO: support post/delete etc... when creating request
+//TODO: add login using form submission and cookie persistence
 //TODO: add parameter manipulation sample
 //TODO: add smart parameters/cookies
 //TODO: add sample URL manipulation.
@@ -27,14 +23,16 @@ Current implementation support black list - add block hosts to black-list.json
 exports = module.exports = function (vuser) {
     var path = require('path');
     var fs = require("fs");
-    var vuserId, proxy, urlListFile, urlList;
-    var hosts = [];
+    var async = require("async");
+
     // setting defaults
-    var urlCurrentllyProccesed  = {count: 0, total: 0, requests:0};  //urlList['urlCurrentllyProccesed'];
+    var vuserId, proxy, urlList;
+    var hosts = [];
+    var urlCurrentllyProccesed = {count: 0, total: 0, requests: 0};  //urlList['urlCurrentllyProccesed'];
     var BrowserData = {name: "", userAgent: ""};
-    /* prepare test data */
+    var blackListHosts = {};
+
     vuserId = vuser.getVUserId();
-    var  blackListHosts = {};
     proxy = process.env.http_proxy ? process.env.http_proxy : undefined;
 
     /* init action */
@@ -71,7 +69,7 @@ exports = module.exports = function (vuser) {
         done();
     });
 
-    function loadHarFile(svc,urlListFile,urlList,urlLists){
+    function loadHarFile(svc, urlListFile, urlList, urlLists) {
         /* load url list */
         svc.logger.info('load url list from %s', urlListFile);
         try {
@@ -120,17 +118,16 @@ exports = module.exports = function (vuser) {
     function getDomains(urlList) {
         for (var j = 0; j < urlList.length; j++) {
             var host = urlList[j].request.headers[arrayObjectIndexOf(urlList[j].request.headers, "name", "Host")];
-           if (host!==undefined)
-           {
-            var hostsIndex = hosts.indexOf(host.value);
-            if (hostsIndex === -1) {
-                hosts.push(host.value);
-                urlLists[host.value] = [];
-                urlLists[host.value]['name'] = host.value;
-                urlLists[host.value]['len'] = 0;
-                urlLists[host.value]['idx'] = 0;
+            if (host !== undefined) {
+                var hostsIndex = hosts.indexOf(host.value);
+                if (hostsIndex === -1) {
+                    hosts.push(host.value);
+                    urlLists[host.value] = [];
+                    urlLists[host.value]['name'] = host.value;
+                    urlLists[host.value]['len'] = 0;
+                    urlLists[host.value]['idx'] = 0;
+                }
             }
-           }
         }
     }
 
@@ -150,7 +147,7 @@ exports = module.exports = function (vuser) {
         }
     };
 
-    function testUrlItem(urlList,svc, urlItem, urlCurrentllyProccesed, callback, done, BrowserData) {
+    function testUrlItem(urlList, svc, urlItem, urlCurrentllyProccesed, callback, done, BrowserData) {
         var reqOpts;
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count + 1;
         urlCurrentllyProccesed.total = urlCurrentllyProccesed.total + 1;
@@ -169,34 +166,34 @@ exports = module.exports = function (vuser) {
 
         };
         for (var i = 0, len = urlItem.headers.length; i < len; i++) {
-                if (((undefined !==urlItem.headers[i].name))&&(urlItem.headers[i].name!=="User-Agent"))
-                {
-                    reqOpts.headers[urlItem.headers[i].name] = urlItem.headers[i].value;
-                }
+            if (((undefined !== urlItem.headers[i].name)) && (urlItem.headers[i].name !== "User-Agent")) {
+                reqOpts.headers[urlItem.headers[i].name] = urlItem.headers[i].value;
+            }
         }
 
         if (checkBlackList(urlItem.url)) {
             urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
-            svc.logger.info('Testing URL %s:%s \n %s', reqOpts.method,reqOpts.url,JSON.stringify(reqOpts.headers));
+            svc.logger.info('Testing URL %s:%s \n %s', reqOpts.method, reqOpts.url, JSON.stringify(reqOpts.headers));
             svc.request(reqOpts, function (err, res, body) {
                 if (err) {
                     svc.logger.error('request error %s', JSON.stringify(err));
+                } else if (undefined !== res)
+                {
+                    /* TODO: add code to check if the results size is similar to recorded one  */
+                    svc.logger.info('After Testing URL %s:%s --> %s', reqOpts.method, reqOpts.url, res.statusCode);
                 }
-
-                /* TODO: add code to check if the results size is similar to recorded one  */
-                svc.logger.info('After Testing URL %s:%s --> %s', reqOpts.method,reqOpts.url,res.statusCode);
-                callback(urlList,svc,urlCurrentllyProccesed, done, BrowserData);
+                callback(urlList, svc, urlCurrentllyProccesed, done, BrowserData);
             });
         }
         else {
             svc.logger.info('Skipping URL %s', urlItem.url);
-            callback(urlList,svc,urlCurrentllyProccesed, done, BrowserData );
+            callback(urlList, svc, urlCurrentllyProccesed, done, BrowserData);
         }
     }
 
-    function onCallback(urlList,svc, urlCurrentllyProccesed, done, BrowserData, err) {
+    function onCallback(urlList, svc, urlCurrentllyProccesed, done, BrowserData, err) {
         if (err) {
-                svc.logger.error('Error:%s',JSON.stringify(err));
+            svc.logger.error('Error:%s', JSON.stringify(err));
         }
 
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count - 1;
@@ -206,57 +203,71 @@ exports = module.exports = function (vuser) {
         urlList['idx']++;
 
         // testing the next Url
-        if ( urlList['idx'] <  urlList['len']) {
+        if (urlList['idx'] < urlList['len']) {
             //* test the next url *//
-            testUrlItem(urlList,svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
+            testUrlItem(urlList, svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
         }
         else if (urlCurrentllyProccesed.count === 0) {
             console.log("--------------------------------- closing ", BrowserData.name);
 
             svc.transaction.end(BrowserData.name, svc.transaction.PASS);
-            svc.logger.info("------- going to call DONE on user %d visited %d urls, %d requests, others were skipped ", vuser.getVUserId(),urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
-            done();
+            svc.logger.info("------- going to call DONE on user %d visited %d urls, %d requests, others were skipped ", vuser.getVUserId(), urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
+            done(null,null);
         }
     }
 
-    function testHost(urlList,svc,done, BrowserData,urlCurrentllyProccesed){
+    function testHost(urlList, svc, done, BrowserData, urlCurrentllyProccesed) {
         for (var browsersThreadsidx = 0; browsersThreadsidx < BrowserData.browsersThreads; browsersThreadsidx++) {
-            if ( urlList['idx'] <  urlList['len']) {
+            if (urlList['idx'] < urlList['len']) {
                 svc.logger.info("INIT THREAD _________________________________%d", browsersThreadsidx);
-                testUrlItem(urlList,svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
+                testUrlItem(urlList, svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
             }
             urlList['idx']++;
         }
     }
 
-    function testHARFIle(svc,filename,done){
+    function testHARFIle(svc, filename, done) {
         // preparing list for testing
         urlList = {};
         urlLists = {};
         // load lists of Urls from HAR file
-        loadHarFile(svc,filename,urlList,urlLists);
+        loadHarFile(svc, filename, urlList, urlLists);
 
         if (urlList.length <= 0) {
             svc.logger.error('An invalid Url list.');
-            done();
+            done(null,null);
             return;
         }
-        else  {
-            svc.logger.info('Test Url list length is %d',  urlList['len']);
+        else {
+            svc.logger.info('Test Url list length is %d', urlList['len']);
         }
 
         svc.logger.info("--------------------------------- starting ", BrowserData, " w");
         svc.transaction.start(BrowserData.name);
-        for(var propt in urlLists){
-            svc.logger.info("****************** host: ",propt ,'len:',urlLists[propt]['len'],'*********************');
-            testHost(urlLists[propt],svc,done,BrowserData,urlCurrentllyProccesed);
+        for (var propt in urlLists) {
+            svc.logger.info("****************** host: ", propt, 'len:', urlLists[propt]['len'], '*********************');
+            testHost(urlLists[propt], svc, done, BrowserData, urlCurrentllyProccesed);
         }
     }
 
     vuser.action('Vuser main action', function (svc, done) {
 
-        testHARFIle(svc,'www.ynet.co.il3 - 31sec load.har',done);
+       // testHARFIle(svc, 'www.ynet.co.il3 - 31sec load.har', done);
 
+        async.series({
+                one: function (callback) {
+                    console.log(" going to test 'www.ynet.co.il3 - 31sec load.har");
+                    testHARFIle(svc, 'www.ynet.co.il3 - 31sec load.har', callback);
+
+                },
+                two: function (callback) {
+                    console.log(" har1.har");
+                    testHARFIle(svc, 'har1.har', callback);
+                }
+            },
+            function (err, results) {
+                done();
+            });
     });
 
 
