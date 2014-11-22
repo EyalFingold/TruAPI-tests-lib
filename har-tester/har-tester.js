@@ -29,22 +29,50 @@ exports = module.exports = function (vuser) {
     var fs = require("fs");
     var vuserId, proxy, urlListFile, urlList;
     var hosts = [];
-
+    // setting defaults
+    var urlCurrentllyProccesed  = {count: 0, total: 0, requests:0};  //urlList['urlCurrentllyProccesed'];
+    var BrowserData = {name: "", userAgent: ""};
     /* prepare test data */
     vuserId = vuser.getVUserId();
-    urlListFile = 'www.ynet.co.il3 - 31sec load.har';
-    blackListHostsFile = 'black-list.json';
-    urlList = {};
-    urlLists = {};
-    blackListHosts = {};
-
+    var  blackListHosts = {};
     proxy = process.env.http_proxy ? process.env.http_proxy : undefined;
 
     /* init action */
     vuser.init('Vuser init action', function (svc, done) {
         svc.logger.info('Vuser %s init', vuserId);
+
+        // starting requests in parallel same as browsers actually behave
+        var browsersInfo = [
+            {browser: "Firefox 2", threadsPerDomain: 2, UserAgent: "Mozilla/5.0 (Windows; Windows NT 5.1; en-US; rv:1.8.1.9) Gecko/20071025 Firefox/2.0.0.9"},
+            {browser: "Firefox 31.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"},
+            {browser: "Opera 9.26", threadsPerDomain: 4, UserAgent: "Mozilla/5.0 (Windows NT 5.1; U; en; rv:1.8.0) Gecko/20060728 Firefox/1.5.0 Opera 9.26"},
+            {browser: "Opera 12.x", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14"},
+            {browser: "Safari 3.2.3", threadsPerDomain: 4, UserAgent: "Mozilla/5.0 (Windows; U; Windows NT 5.1; cs-CZ) AppleWebKit/525.28.3 (KHTML, like Gecko) Version/3.2.3 Safari/525.29"},
+            {browser: "Safari 8.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10) AppleWebKit/600.1.25 (KHTML, like Gecko) Version/8.0 Safari/600.1.25"},
+            {browser: "IE 7", threadsPerDomain: 2, UserAgent: "Mozilla/5.0 (Windows; U; MSIE 7.0; Windows NT 6.0; en-US)"},
+            {browser: "IE 8", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; GTB7.4; InfoPath.2; SV1; .NET CLR 3.3.69573; WOW64; en-US)"},
+            {browser: "IE 9", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows; U; MSIE 9.0; WIndows NT 9.0; en-US))"},
+            {browser: "IE 10", threadsPerDomain: 8, UserAgent: "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0"},
+            {browser: "IE 11", threadsPerDomain: 13, UserAgent: "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko"},
+            {browser: "Chrome 37.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36"}
+        ]
+        var chosenBrowserID = Math.floor((Math.random() * (browsersInfo.length - 1)) + 1);
+        BrowserData.browsersThreads = browsersInfo[chosenBrowserID]['threadsPerDomain']; //setting as chrome for now
+        BrowserData.name = browsersInfo[chosenBrowserID]['browser'];
+        BrowserData.userAgent = browsersInfo[chosenBrowserID]['UserAgent'];
+
+        // get all the blacklist hosts
+
+        blackListHostsFile = 'black-list.json';
+        var tmpdata = JSON.parse(loadFromFile(blackListHostsFile))
+        blackListHosts = tmpdata.blackListHostNames;
+
+
+        done();
+    });
+
+    function loadHarFile(svc,urlListFile,urlList,urlLists){
         /* load url list */
-        // urlListFile = path.resolve(__dirname, urlListFile);
         svc.logger.info('load url list from %s', urlListFile);
         try {
 
@@ -52,13 +80,10 @@ exports = module.exports = function (vuser) {
             urlList = JSON.parse(loadFromFile(urlListFile)).log.entries;
             urlList['len'] = urlList.length;
             urlList['idx'] = 0;
-            // get all the blacklist hosts
-            var tmpdata = JSON.parse(loadFromFile(blackListHostsFile))
-            blackListHosts = tmpdata.blackListHostNames;
 
             // split the urls based on domain to allow running concurrent tests per host
             //geting url lists
-           getDomains(urlList);
+            getDomains(urlList);
 
             //generating urls lists based on the hosts
             for (var j = 0; j < urlList.length; j++) {
@@ -75,8 +100,7 @@ exports = module.exports = function (vuser) {
         catch (err) {
             svc.logger.error('Cannot load url list from %s', err, urlListFile);
         }
-        done();
-    });
+    }
 
     function loadFromFile(filename) {
         //console.log('in loadFromFile');
@@ -142,6 +166,7 @@ exports = module.exports = function (vuser) {
             headers: {
                 'User-Agent': BrowserData.userAgent
             }
+
         };
 
 
@@ -182,7 +207,7 @@ exports = module.exports = function (vuser) {
         }
     }
 
-    function checkhost(urlList,svc,done, BrowserData,urlCurrentllyProccesed){
+    function testHost(urlList,svc,done, BrowserData,urlCurrentllyProccesed){
         for (var browsersThreadsidx = 0; browsersThreadsidx < BrowserData.browsersThreads; browsersThreadsidx++) {
             if ( urlList['idx'] <  urlList['len']) {
                 svc.logger.info("INIT THREAD _________________________________%d", browsersThreadsidx);
@@ -192,45 +217,34 @@ exports = module.exports = function (vuser) {
         }
     }
 
-    vuser.action('Vuser main action', function (svc, done) {
-        urlList['urlCurrentllyProccesed'] = {count: 0};
-        var urlCurrentllyProccesed  = {count: 0, total: 0, requests:0};  //urlList['urlCurrentllyProccesed'];
-        var BrowserData = {name: "", userAgent: ""};
-        svc.logger.info('Test Url list length is %d',  urlList['len']);
+    function testHARFIle(svc,filename,done)
+    {
+        // preparing list for testing
+        urlList = {};
+        urlLists = {};
+        // load lists of Urls from HAR file
+        loadHarFile(svc,filename,urlList,urlLists);
+
         if (urlList.length <= 0) {
             svc.logger.error('An invalid Url list.');
             done();
             return;
         }
-
-        //* test the first url *//
-        // starting requests in parallel same as browsers actually behave
-        var browsersInfo = [
-            {browser: "Firefox 2", threadsPerDomain: 2, UserAgent: "Mozilla/5.0 (Windows; Windows NT 5.1; en-US; rv:1.8.1.9) Gecko/20071025 Firefox/2.0.0.9"},
-            {browser: "Firefox 31.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"},
-            {browser: "Opera 9.26", threadsPerDomain: 4, UserAgent: "Mozilla/5.0 (Windows NT 5.1; U; en; rv:1.8.0) Gecko/20060728 Firefox/1.5.0 Opera 9.26"},
-            {browser: "Opera 12.x", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 6.0; rv:2.0) Gecko/20100101 Firefox/4.0 Opera 12.14"},
-            {browser: "Safari 3.2.3", threadsPerDomain: 4, UserAgent: "Mozilla/5.0 (Windows; U; Windows NT 5.1; cs-CZ) AppleWebKit/525.28.3 (KHTML, like Gecko) Version/3.2.3 Safari/525.29"},
-            {browser: "Safari 8.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10) AppleWebKit/600.1.25 (KHTML, like Gecko) Version/8.0 Safari/600.1.25"},
-            {browser: "IE 7", threadsPerDomain: 2, UserAgent: "Mozilla/5.0 (Windows; U; MSIE 7.0; Windows NT 6.0; en-US)"},
-            {browser: "IE 8", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; GTB7.4; InfoPath.2; SV1; .NET CLR 3.3.69573; WOW64; en-US)"},
-            {browser: "IE 9", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows; U; MSIE 9.0; WIndows NT 9.0; en-US))"},
-            {browser: "IE 10", threadsPerDomain: 8, UserAgent: "Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0"},
-            {browser: "IE 11", threadsPerDomain: 13, UserAgent: "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko"},
-            {browser: "Chrome 37.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36"}
-        ]
-        var chosenBrowserID = Math.floor((Math.random() * (browsersInfo.length - 1)) + 1);
-        BrowserData.browsersThreads = browsersInfo[chosenBrowserID]['threadsPerDomain']; //setting as chrome for now
-        BrowserData.name = browsersInfo[chosenBrowserID]['browser'];
-        BrowserData.userAgent = browsersInfo[chosenBrowserID]['UserAgent'];
-
-        console.log("--------------------------------- starting ", BrowserData, " w");
-        svc.transaction.start(BrowserData.name);
-
-        for(var propt in urlLists){
-            console.log("****************** host: ",propt ,'len:',urlLists[propt]['len'],'*********************');
-            checkhost(urlLists[propt],svc,done,BrowserData,urlCurrentllyProccesed);
+        else  {
+            svc.logger.info('Test Url list length is %d',  urlList['len']);
         }
+
+        svc.logger.info("--------------------------------- starting ", BrowserData, " w");
+        svc.transaction.start(BrowserData.name);
+        for(var propt in urlLists){
+            svc.logger.info("****************** host: ",propt ,'len:',urlLists[propt]['len'],'*********************');
+            testHost(urlLists[propt],svc,done,BrowserData,urlCurrentllyProccesed);
+        }
+    }
+
+    vuser.action('Vuser main action', function (svc, done) {
+
+        testHARFIle(svc,'har1.har',done);
 
     });
 
