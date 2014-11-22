@@ -27,7 +27,7 @@ exports = module.exports = function (vuser) {
 
     // setting defaults
     var vuserId, proxy, urlList;
-    var hosts = [];
+
     var urlCurrentllyProccesed = {count: 0, total: 0, requests: 0};  //urlList['urlCurrentllyProccesed'];
     var BrowserData = {name: "", userAgent: ""};
     var blackListHosts = {};
@@ -69,7 +69,7 @@ exports = module.exports = function (vuser) {
         done();
     });
 
-    function loadHarFile(svc, urlListFile, urlList, urlLists) {
+    function loadHarFile(svc, urlListFile, urlList, urlLists,hosts) {
         /* load url list */
         svc.logger.info('load url list from %s', urlListFile);
         try {
@@ -81,7 +81,7 @@ exports = module.exports = function (vuser) {
 
             // split the urls based on domain to allow running concurrent tests per host
             //geting url lists
-            getDomains(urlList);
+            getDomains(urlList,hosts);
 
             //generating urls lists based on the hosts
             for (var j = 0; j < urlList.length; j++) {
@@ -115,7 +115,7 @@ exports = module.exports = function (vuser) {
         return -1;
     }
 
-    function getDomains(urlList) {
+    function getDomains(urlList,hosts) {
         for (var j = 0; j < urlList.length; j++) {
             var host = urlList[j].request.headers[arrayObjectIndexOf(urlList[j].request.headers, "name", "Host")];
             if (host !== undefined) {
@@ -156,15 +156,21 @@ exports = module.exports = function (vuser) {
         };
         urlItem = urlItem || {};
         /* setting up request options, coping related request options from recorded har */
+
         reqOpts = {
             url: urlItem.url,
             proxy: proxy,
             method: urlItem.method,
             headers: {
                 'User-Agent': BrowserData.userAgent
-            }
+            },
+
 
         };
+
+        if (undefined !==urlItem.postData)
+            reqOpts.body = urlItem.postData.text;
+
         for (var i = 0, len = urlItem.headers.length; i < len; i++) {
             if (((undefined !== urlItem.headers[i].name)) && (urlItem.headers[i].name !== "User-Agent")) {
                 reqOpts.headers[urlItem.headers[i].name] = urlItem.headers[i].value;
@@ -173,7 +179,7 @@ exports = module.exports = function (vuser) {
 
         if (checkBlackList(urlItem.url)) {
             urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
-            svc.logger.info('Testing URL %s:%s \n %s', reqOpts.method, reqOpts.url, JSON.stringify(reqOpts.headers));
+            svc.logger.info('Testing URL %s:%s \n %s%s', reqOpts.method, reqOpts.url, JSON.stringify(reqOpts.headers),JSON.stringify(reqOpts.body));
             svc.request(reqOpts, function (err, res, body) {
                 if (err) {
                     svc.logger.error('request error %s', JSON.stringify(err));
@@ -230,8 +236,9 @@ exports = module.exports = function (vuser) {
         // preparing list for testing
         urlList = {};
         urlLists = {};
+        hosts = [];
         // load lists of Urls from HAR file
-        loadHarFile(svc, filename, urlList, urlLists);
+        loadHarFile(svc, filename, urlList, urlLists,hosts);
 
         if (urlList.length <= 0) {
             svc.logger.error('An invalid Url list.');
@@ -256,13 +263,13 @@ exports = module.exports = function (vuser) {
 
         async.series({
                 one: function (callback) {
-                    console.log(" going to test 'www.ynet.co.il3 - 31sec load.har");
-                    testHARFIle(svc, 'www.ynet.co.il3 - 31sec load.har', callback);
+                    console.log(" going to test 'www.linkedin.com.har");
+                    testHARFIle(svc, 'www.linkedin.com.har', callback);
 
                 },
                 two: function (callback) {
-                    console.log(" har1.har");
-                    testHARFIle(svc, 'har1.har', callback);
+                    console.log("www.linkedin.com-login.har");
+                    testHARFIle(svc, 'www.linkedin.com-login.har', callback);
                 }
             },
             function (err, results) {
