@@ -168,32 +168,44 @@ exports = module.exports = function (vuser) {
             }
 
         };
-
+        for (var i = 0, len = urlItem.headers.length; i < len; i++) {
+                if (((undefined !==urlItem.headers[i].name))&&(urlItem.headers[i].name!=="User-Agent"))
+                {
+                    reqOpts.headers[urlItem.headers[i].name] = urlItem.headers[i].value;
+                }
+        }
 
         if (checkBlackList(urlItem.url)) {
             urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
-            svc.logger.info('Testing URL %s', urlItem.url);
+            svc.logger.info('Testing URL %s:%s \n %s', reqOpts.method,reqOpts.url,JSON.stringify(reqOpts.headers));
             svc.request(reqOpts, function (err, res, body) {
                 if (err) {
-                    svc.logger.error('request error %s', err.toString());
+                    svc.logger.error('request error %s', JSON.stringify(err));
                 }
+
                 /* TODO: add code to check if the results size is similar to recorded one  */
-                callback(urlList,svc,urlCurrentllyProccesed, done, BrowserData,urlItem.url + 'Method:' + urlItem.method);
+                svc.logger.info('After Testing URL %s:%s --> %s', reqOpts.method,reqOpts.url,res.statusCode);
+                callback(urlList,svc,urlCurrentllyProccesed, done, BrowserData);
             });
         }
         else {
             svc.logger.info('Skipping URL %s', urlItem.url);
-            callback(urlList,svc,urlCurrentllyProccesed, done, BrowserData,urlItem.url + 'Method:' + urlItem.method);
+            callback(urlList,svc,urlCurrentllyProccesed, done, BrowserData );
         }
     }
 
-    function onCallback(urlList,svc, urlCurrentllyProccesed, done, BrowserData, err,urlItem) {
+    function onCallback(urlList,svc, urlCurrentllyProccesed, done, BrowserData, err) {
         if (err) {
-            svc.logger.error('Error: %s   on URL:%s', err.toString(),urlItem);
+                svc.logger.error('Error:%s',JSON.stringify(err));
         }
+
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count - 1;
+
         svc.logger.info("Processing %d Urls", urlCurrentllyProccesed.count, " --- ", BrowserData.name);
+
         urlList['idx']++;
+
+        // testing the next Url
         if ( urlList['idx'] <  urlList['len']) {
             //* test the next url *//
             testUrlItem(urlList,svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
@@ -217,8 +229,7 @@ exports = module.exports = function (vuser) {
         }
     }
 
-    function testHARFIle(svc,filename,done)
-    {
+    function testHARFIle(svc,filename,done){
         // preparing list for testing
         urlList = {};
         urlLists = {};
@@ -244,7 +255,7 @@ exports = module.exports = function (vuser) {
 
     vuser.action('Vuser main action', function (svc, done) {
 
-        testHARFIle(svc,'har1.har',done);
+        testHARFIle(svc,'www.ynet.co.il3 - 31sec load.har',done);
 
     });
 
