@@ -69,7 +69,7 @@ exports = module.exports = function (vuser) {
         done();
     });
 
-    function loadHarFile(svc, urlListFile, urlList, urlLists,hosts) {
+    function loadHarFile(svc, urlListFile, urlList, urlLists, hosts) {
         /* load url list */
         svc.logger.info('load url list from %s', urlListFile);
         try {
@@ -81,7 +81,7 @@ exports = module.exports = function (vuser) {
 
             // split the urls based on domain to allow running concurrent tests per host
             //geting url lists
-            getDomains(urlList,hosts);
+            getDomains(urlList, hosts);
 
             //generating urls lists based on the hosts
             for (var j = 0; j < urlList.length; j++) {
@@ -115,7 +115,7 @@ exports = module.exports = function (vuser) {
         return -1;
     }
 
-    function getDomains(urlList,hosts) {
+    function getDomains(urlList, hosts) {
         for (var j = 0; j < urlList.length; j++) {
             var host = urlList[j].request.headers[arrayObjectIndexOf(urlList[j].request.headers, "name", "Host")];
             if (host !== undefined) {
@@ -156,11 +156,10 @@ exports = module.exports = function (vuser) {
         };
         urlItem = urlItem || {};
         /* setting up request options, coping related request options from recorded har */
-
         reqOpts = {
-            url: urlItem.url,
+            url: urlItem.request.url,
             proxy: proxy,
-            method: urlItem.method,
+            method: urlItem.request.method,
             headers: {
                 'User-Agent': BrowserData.userAgent
             },
@@ -168,31 +167,45 @@ exports = module.exports = function (vuser) {
 
         };
 
-        if (undefined !==urlItem.postData)
-            reqOpts.body = urlItem.postData.text;
+        if (undefined !== urlItem.request.postData)
+            reqOpts.body = urlItem.request.postData.text;
 
-        for (var i = 0, len = urlItem.headers.length; i < len; i++) {
-            if (((undefined !== urlItem.headers[i].name)) && (urlItem.headers[i].name !== "User-Agent")) {
-                reqOpts.headers[urlItem.headers[i].name] = urlItem.headers[i].value;
+        for (var i = 0, len = urlItem.request.headers.length; i < len; i++) {
+            if (((undefined !== urlItem.request.headers[i].name)) && (urlItem.request.headers[i].name !== "User-Agent")) {
+                reqOpts.headers[urlItem.request.headers[i].name] = urlItem.request.headers[i].value;
             }
         }
 
-        if (checkBlackList(urlItem.url)) {
+        if (checkBlackList(urlItem.request.url)) {
             urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
-            svc.logger.info('Testing URL %s:%s \n %s%s', reqOpts.method, reqOpts.url, JSON.stringify(reqOpts.headers),JSON.stringify(reqOpts.body));
+            svc.logger.info('Testing URL %s:%s \n %s%s', reqOpts.method, reqOpts.url, JSON.stringify(reqOpts.headers), JSON.stringify(reqOpts.body));
             svc.request(reqOpts, function (err, res, body) {
                 if (err) {
                     svc.logger.error('request error %s', JSON.stringify(err));
-                } else if (undefined !== res)
-                {
+                } else if (undefined !== res) {
                     /* TODO: add code to check if the results size is similar to recorded one  */
+                    /* "content": {
+                     "size": 4679,
+                     "mimeType": "application/json",
+                     "compression": 3589,
+                     "text":*/
+
+                    if ((undefined !== res.headers) && (res.headers['content-type'] === "application/json")) {
+                        if (urlItem.response.content.text === res.body) {
+                            svc.logger.info("Json Response comparison ok");
+                        }
+                        else {
+                            svc.logger.error("Json Response is not equal to original recording\n Original:%s\nNew:%s", urlItem.response.content.text,JSON.stringify(res));
+                        }
+                    }
+                    //svc.logger.info("body------------------->%s",body);
                     svc.logger.info('After Testing URL %s:%s --> %s', reqOpts.method, reqOpts.url, res.statusCode);
                 }
                 callback(urlList, svc, urlCurrentllyProccesed, done, BrowserData);
             });
         }
         else {
-            svc.logger.info('Skipping URL %s', urlItem.url);
+            svc.logger.info('Skipping URL %s', urlItem.request.url);
             callback(urlList, svc, urlCurrentllyProccesed, done, BrowserData);
         }
     }
@@ -211,14 +224,14 @@ exports = module.exports = function (vuser) {
         // testing the next Url
         if (urlList['idx'] < urlList['len']) {
             //* test the next url *//
-            testUrlItem(urlList, svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
+            testUrlItem(urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onCallback, done, BrowserData);
         }
         else if (urlCurrentllyProccesed.count === 0) {
             console.log("--------------------------------- closing ", BrowserData.name);
 
             svc.transaction.end(BrowserData.name, svc.transaction.PASS);
             svc.logger.info("------- going to call DONE on user %d visited %d urls, %d requests, others were skipped ", vuser.getVUserId(), urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
-            done(null,null);
+            done(null, null);
         }
     }
 
@@ -226,7 +239,7 @@ exports = module.exports = function (vuser) {
         for (var browsersThreadsidx = 0; browsersThreadsidx < BrowserData.browsersThreads; browsersThreadsidx++) {
             if (urlList['idx'] < urlList['len']) {
                 svc.logger.info("INIT THREAD _________________________________%d", browsersThreadsidx);
-                testUrlItem(urlList, svc, urlList[ urlList['idx']].request, urlCurrentllyProccesed, onCallback, done, BrowserData);
+                testUrlItem(urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onCallback, done, BrowserData);
             }
             urlList['idx']++;
         }
@@ -238,11 +251,11 @@ exports = module.exports = function (vuser) {
         urlLists = {};
         hosts = [];
         // load lists of Urls from HAR file
-        loadHarFile(svc, filename, urlList, urlLists,hosts);
+        loadHarFile(svc, filename, urlList, urlLists, hosts);
 
         if (urlList.length <= 0) {
             svc.logger.error('An invalid Url list.');
-            done(null,null);
+            done(null, null);
             return;
         }
         else {
@@ -259,17 +272,21 @@ exports = module.exports = function (vuser) {
 
     vuser.action('Vuser main action', function (svc, done) {
 
-       // testHARFIle(svc, 'www.ynet.co.il3 - 31sec load.har', done);
+        // testHARFIle(svc, 'www.ynet.co.il3 - 31sec load.har', done);
 
         async.series({
-                one: function (callback) {
+                f1: function (callback) {
                     console.log(" going to test 'www.linkedin.com.har");
                     testHARFIle(svc, 'www.linkedin.com.har', callback);
 
                 },
-                two: function (callback) {
+                f2: function (callback) {
                     console.log("www.linkedin.com-login.har");
                     testHARFIle(svc, 'www.linkedin.com-login.har', callback);
+                },
+                f3: function (callback) {
+                    console.log("www.linkedin.com-login.har");
+                    testHARFIle(svc, 'www.linkedin.com-connections.har', callback);
                 }
             },
             function (err, results) {
