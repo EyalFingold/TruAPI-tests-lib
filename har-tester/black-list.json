@@ -1,13 +1,14 @@
 {
     "blackListHostNames":  [
-        "somesite.com" ,"somesite2.com"
-        ]
+        "www.google.com" ,
+        "js-agent.newrelic.com",
+        "beacon-5.newrelic.com",
+        "newrelic.com",
+        "google.com",
+        "facebook.com"
+
+    ]
 }
-
-
-
-
-
 
 
 
