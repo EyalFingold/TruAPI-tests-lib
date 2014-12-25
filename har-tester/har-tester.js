@@ -5,8 +5,8 @@
  - Url
  - Method
  - User Agent
- Current implementation simulate several concurrent connections per host or for 'All' hosts -  depends on configuration, in a similar manner to common browsers.
- Browsers are randomly chosen, the 'all' option is added to support flows that are cross hosts (for example authentication host)
+ Current implementation simulate several concurrent connections per 'All' hosts -  in a some  similar manner to common browsers.
+ Browsers are randomly chosen, the concurrent connections for  'all' host  is added to support flows that are cross hosts (for example authentication host)
 
  Current implementation support black list - add block hosts to black-list.json
  */
