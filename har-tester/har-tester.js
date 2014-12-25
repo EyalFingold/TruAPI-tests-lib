@@ -60,7 +60,7 @@ exports = module.exports = function (vuser) {
         var fileNameTotest = "";
         async.series({
                 f1: function (callback) {
-                    fileNameTotest = "har2.har";
+                    fileNameTotest = "har1.har";
                     svc.transaction.start(fileNameTotest);
                     svc.logger.info(" going to test %s", fileNameTotest);
                     harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies,Parameters);
