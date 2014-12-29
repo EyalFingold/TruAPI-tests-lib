@@ -4,5 +4,15 @@
     "dependencies": {
         "async":"~0.9.x",
         "cookie":"0.1.2"
-    }
+    },
+    "man" : [ "./har-tester.js", "./har-helper.js" ],
+    "files": [
+        "har-tester.js",
+        "har-helper.js",
+        "har1.har",
+        "package.json",
+        "truapi.json",
+        "black-list.json"
+
+    ]
 }

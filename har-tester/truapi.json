@@ -4,14 +4,15 @@
     "script": "har-tester.js"
   },
   "local": {
-    "vuserCount": 1,
+    "vuserCount": 5,
     "policy": {
       "start": { "type": "allTogether" },
-      "duration": { "type": "iterationBased", "param": 1 },
+      "duration": { "type": "iterationBased", "param": 5},
       "end": { "type": "allTogether" }
     }
   },
-  "transactions": [ "Firefox 31.0",
+  "transactions": [
+      "Firefox 31.0",
       "Opera 12.x",
       "Safari 8.0",
       "IE 10",

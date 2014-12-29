@@ -34,7 +34,7 @@ function loadHarFile(svc, urlListFile, urlList, urlLists, hosts) {
 
         //generating urls lists based on the hosts
         for (var j = 0; j < urlList.length; j++) {
-            svc.logger.info('load url %s - %s',j, urlList[j].request.url);
+            svc.logger.info('load url %s - %s', j, urlList[j].request.url);
             var host = urlList[j].request.headers[arrayObjectIndexOf(urlList[j].request.headers, "name", "Host")];
             if (host !== undefined) {
                 var hostsIndex = hosts.indexOf(host.value);
@@ -128,8 +128,7 @@ function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccese
         mimeType = urlItem.response.content.mimeType;
 
     // TODO: verify static files dont require authentication as well
-    if ((undefined!==urlItem.request)&&(undefined!=urlItem.request.method)&&(urlItem.request.method==="GET")&&(checkIsStaticMimeTypes(mimeType)))
-    {
+    if ((undefined !== urlItem.request) && (undefined != urlItem.request.method) && (urlItem.request.method === "GET") && (checkIsStaticMimeTypes(mimeType))) {
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count + 1;
         urlCurrentllyProccesed.total = urlCurrentllyProccesed.total + 1;
         testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData);
@@ -156,7 +155,7 @@ function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccese
 
 function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData) {
     var reqOpts;
-    svc.logger.info('vThreadNumber:%s, testNonStatic UrlItem URL %s',vThreadNumber, urlItem.request.url);
+    svc.logger.info('vThreadNumber:%s, testNonStatic UrlItem URL %s', vThreadNumber, urlItem.request.url);
 
     nonStaticCallback = nonStaticCallback || function () {
     };
@@ -190,49 +189,52 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
     // if URL is not in blacklist
     if (checkBlackList(urlItem.request.url)) {
         urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
-        svc.logger.info('vThreadNumber:%s,Testing URL %s:%s ',vThreadNumber, reqOpts.method, reqOpts.url);
+        svc.logger.info('vThreadNumber:%s,Testing URL %s:%s ', vThreadNumber, reqOpts.method, reqOpts.url);
 
         svc.request(reqOpts, function (err, res, body) {
             urlCurrentllyProccesed.issuesRequests++;
             if (err) {
-                svc.logger.error('vThreadNumber:%s,request error %s',vThreadNumber, JSON.stringify(err));
+                svc.logger.error('vThreadNumber:%s,request error %s', vThreadNumber, JSON.stringify(err));
             } else if (undefined !== res) {
-                svc.logger.info("vThreadNumber:%s,Processing request for tokens in Cookies...%s",vThreadNumber, reqOpts.url);
+                svc.logger.info("vThreadNumber:%s,Processing request for tokens in Cookies...%s", vThreadNumber, reqOpts.url);
 
                 if ((undefined !== res.headers) && (undefined !== res.headers['set-cookie'] )) {
-                    svc.logger.info("vThreadNumber:%s,found some cookies%s",vThreadNumber, res.headers['set-cookie']);
+                    svc.logger.info("vThreadNumber:%s,found some cookies%s", vThreadNumber, res.headers['set-cookie']);
                     collectedCookies.push(res.headers['set-cookie']);
                 }
                 if ((undefined !== res.headers) && (undefined !== res.headers['Set-Cookie'] )) {
-                    svc.logger.info("vThreadNumber:%s,found some cookies%s",vThreadNumber, res.headers['Set-Cookie']);
+                    svc.logger.info("vThreadNumber:%s,found some cookies%s", vThreadNumber, res.headers['Set-Cookie']);
                     collectedCookies.push(res.headers['Set-Cookie']);
                 }
 
 
-                svc.logger.info("vThreadNumber:%s,checking request...%s",vThreadNumber, reqOpts.url);
+                svc.logger.info("vThreadNumber:%s,checking request...%s", vThreadNumber, reqOpts.url);
                 if (urlItem.response.status === res.statusCode) {
-                    svc.logger.info("vThreadNumber:%s,status Response comparison ok",vThreadNumber);
+                    svc.logger.info("vThreadNumber:%s,status Response comparison ok", vThreadNumber);
+                }
+                else if ((urlItem.response.status === 304) && (res.statusCode === 200)) {
+                    svc.logger.info("vThreadNumber:%s,status Response comparison ok", vThreadNumber);
                 }
                 else {
-                    svc.logger.error("vThreadNumber:%s,status Response is not equal to original recording\n Original:%s\nNew:%s",vThreadNumber, urlItem.response.status, JSON.stringify(res.statusCode));
+                    svc.logger.error("vThreadNumber:%s,status Response is not equal to original recording\n Original:%s\nNew:%s", vThreadNumber, urlItem.response.status, JSON.stringify(res.statusCode));
                 }
 
                 if (undefined !== res.headers) {
                     if (urlItem.response.headers['mimeType'] === res.headers['mimeType']) {
-                        svc.logger.info("vThreadNumber:%s,mimeType Response comparison ok",vThreadNumber);
+                        svc.logger.info("vThreadNumber:%s,mimeType Response comparison ok", vThreadNumber);
                     }
                     else {
-                        svc.logger.error("vThreadNumber:%s,mimeType Response is not equal to original recording\n Original:%s\nNew:%s",vThreadNumber, urlItem.response.headers['mimeType'], res.headers['mimeType']);
+                        svc.logger.error("vThreadNumber:%s,mimeType Response is not equal to original recording\n Original:%s\nNew:%s", vThreadNumber, urlItem.response.headers['mimeType'], res.headers['mimeType']);
                     }
                 }
-                svc.logger.info('vThreadNumber:%s,After Testing URL %s:%s --> %s',vThreadNumber, reqOpts.method, reqOpts.url, res.statusCode);
+                svc.logger.info('vThreadNumber:%s,After Testing URL %s:%s --> %s', vThreadNumber, reqOpts.method, reqOpts.url, res.statusCode);
             }
             nonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, nonStaticCallback, StaticCallback);
         });
     }
     else {
         urlCurrentllyProccesed.skipped++;
-        svc.logger.info('vThreadNumber:%s,Skipping URL %s',vThreadNumber, urlItem.request.url);
+        svc.logger.info('vThreadNumber:%s,Skipping URL %s', vThreadNumber, urlItem.request.url);
         nonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, nonStaticCallback, StaticCallback);
     }
 }
@@ -240,9 +242,8 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
 function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, nonStaticCallback, StaticCallback, err) {
     urlCurrentllyProccesed.count = urlCurrentllyProccesed.count - 1;
     var indexOfItem = arrayObjectIndexOf(urlList['queue'], "url", url);
-    if (indexOfItem> -1)
-    {
-        svc.logger.info("vThreadNumber:%s,Removing %s from Static Q",vThreadNumber,url);
+    if (indexOfItem > -1) {
+        svc.logger.info("vThreadNumber:%s,Removing %s from Static Q", vThreadNumber, url);
         urlList['queue'].splice(arrayObjectIndexOf(urlList['queue'], "url", url), 1);
     }
 
@@ -256,7 +257,7 @@ function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProc
     if (urlList['queue'].length > 0) {
         // getting the next URL from the queue array
         var urlItem = urlList['queue'].shift();
-        svc.logger.info("vThreadNumber:%s,Removing %s from Static Q", vThreadNumber,urlItem.request.url);
+        svc.logger.info("vThreadNumber:%s,Removing %s from Static Q", vThreadNumber, urlItem.request.url);
         //urlList['idx']++;
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count + 1;
         urlCurrentllyProccesed.total = urlCurrentllyProccesed.total + 1;
@@ -274,12 +275,11 @@ function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProc
             if ((urlCurrentllyProccesed.count <= 1) && (urlList['queue'].length <= 0) && ((urlCurrentllyProccesed.closedThreads === (BrowserData.browsersThreads)))) {
                 svc.logger.info("vThreadNumber:%s,--------------------------------- closing ", vThreadNumber, BrowserData.name);
                 svc.logger.info("vThreadNumber:%s,-------  user %d visited %d urls, %d requests, others were skipped ", vThreadNumber, vuser.getVUserId(), urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
-                svc.logger.info("vThreadNumber:%s,onNONStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber,urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
+                svc.logger.info("vThreadNumber:%s,onNONStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber, urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
                 svc.logger.info("vThreadNumber:%s,closing thread and calling done", vThreadNumber, BrowserData.name);
                 done(null, null);
             }
-            else
-            {
+            else {
                 svc.logger.info("closing vThreadNumber%s", vThreadNumber);
             }
         }
@@ -335,38 +335,41 @@ function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyPr
     // if URL is not in blacklist
     if (checkBlackList(urlItem.request.url)) {
         urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
-        svc.logger.info('vThreadNumber%s: Testing URL %s:%s %s',vThreadNumber, reqOpts.method, reqOpts.url);
+        svc.logger.info('vThreadNumber%s: Testing URL %s:%s %s', vThreadNumber, reqOpts.method, reqOpts.url);
 
 
         svc.request(reqOpts, function (err, res, body) {
             urlCurrentllyProccesed.issuesRequests++;
             if (err) {
-                svc.logger.error('vThreadNumber%s:request error %s',vThreadNumber, JSON.stringify(err));
+                svc.logger.error('vThreadNumber%s:request error %s', vThreadNumber, JSON.stringify(err));
             } else if (undefined !== res) {
-                svc.logger.info("vThreadNumber%s:checking request...%s",vThreadNumber, reqOpts.url);
+                svc.logger.info("vThreadNumber%s:checking request...%s", vThreadNumber, reqOpts.url);
                 if (urlItem.response.status === res.statusCode) {
-                    svc.logger.info("vThreadNumber%s:status Response comparison ok",vThreadNumber);
+                    svc.logger.info("vThreadNumber%s:status Response comparison ok", vThreadNumber);
+                }
+                else if ((urlItem.response.status ===304) && (res.statusCode === 200)) {
+                    svc.logger.info("vThreadNumber:%s,status Response comparison ok", vThreadNumber);
                 }
                 else {
-                    svc.logger.error("vThreadNumber%s:status Response is not equal to original recording\n Original:%s\nNew:%s",vThreadNumber, urlItem.response.status, JSON.stringify(res.statusCode));
+                    svc.logger.error("vThreadNumber%s:status Response is not equal to original recording\n Original:%s\nNew:%s", vThreadNumber, urlItem.response.status, JSON.stringify(res.statusCode));
                 }
 
                 if (undefined !== res.headers) {
                     if (urlItem.response.headers['mimeType'] === res.headers['mimeType']) {
-                        svc.logger.info("vThreadNumber%s:mimeType Response comparison ok",vThreadNumber);
+                        svc.logger.info("vThreadNumber%s:mimeType Response comparison ok", vThreadNumber);
                     }
                     else {
-                        svc.logger.error("vThreadNumber%s:mimeType Response is not equal to original recording\n Original:%s\nNew:%s",vThreadNumber, urlItem.response.headers['mimeType'], res.headers['mimeType']);
+                        svc.logger.error("vThreadNumber%s:mimeType Response is not equal to original recording\n Original:%s\nNew:%s", vThreadNumber, urlItem.response.headers['mimeType'], res.headers['mimeType']);
                     }
                 }
 
-                svc.logger.info('vThreadNumber%s:After Testing URL %s:%s --> %s',vThreadNumber, reqOpts.method, reqOpts.url, res.statusCode);
+                svc.logger.info('vThreadNumber%s:After Testing URL %s:%s --> %s', vThreadNumber, reqOpts.method, reqOpts.url, res.statusCode);
             }
             StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData);
         });
     }
     else {
-        svc.logger.info('vThreadNumber%s:Skipping URL %s',vThreadNumber, urlItem.request.url);
+        svc.logger.info('vThreadNumber%s:Skipping URL %s', vThreadNumber, urlItem.request.url);
         urlCurrentllyProccesed.skipped++;
         StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData);
     }
@@ -406,12 +409,11 @@ function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, n
         if ((urlCurrentllyProccesed.count <= 1) && (urlList['queue'].length <= 0) && ((urlCurrentllyProccesed.closedThreads === (BrowserData.browsersThreads)))) {
             svc.logger.info("vThreadNumber:%s,--------------------------------- closing ", vThreadNumber, BrowserData.name);
             svc.logger.info("vThreadNumber:%s,-------  user %d visited %d urls, %d requests, others were skipped ", vThreadNumber, vuser.getVUserId(), urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
-            svc.logger.info("vThreadNumber:%s,onStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber,urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
+            svc.logger.info("vThreadNumber:%s,onStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber, urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
             svc.logger.info("vThreadNumber:%s,closing thread and calling done", vThreadNumber, BrowserData.name);
             done(null, null);
         }
-        else
-        {
+        else {
             svc.logger.info("closing vThreadNumber%s", vThreadNumber);
         }
     }
@@ -424,8 +426,7 @@ function testHost(urlList, svc, done, BrowserData, urlCurrentllyProccesed) {
             svc.logger.info("INIT THREAD _________________________________%d", browsersThreadsidx);
             testUrlItem(browsersThreadsidx, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onNonStaticCallback, onStaticCallback, done, BrowserData);
         }
-        else
-        {
+        else {
             urlCurrentllyProccesed.closedThreads++;
         }
     }
