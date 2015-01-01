@@ -5,12 +5,11 @@
  - Url
  - Method
  - User Agent
- Current implementation simulate several concurrent connections per 'All' hosts -  in a some  similar manner to common browsers.
- Browsers are randomly chosen, the concurrent connections for  'all' host  is added to support flows that are cross hosts (for example authentication host)
+ Current implementation simulate several concurrent connections per host or for 'All' hosts -  depends on configuration, in a similar manner to common browsers.
+ Browsers are randomly chosen, the 'all' option is added to support flows that are cross hosts (for example authentication host)
 
  Current implementation support black list - add block hosts to black-list.json
  */
-
 
 exports = module.exports = function (vuser) {
     var harHelper = require('./har-helper.js');
@@ -22,8 +21,39 @@ exports = module.exports = function (vuser) {
     var vuserId;
     var BrowserData = {name: "", userAgent: ""};
     var blackListHosts = {};
-    var CollectedCookies = {};
+    var CollectedCookies = {collectedCookies:[]};
     var Parameters = {};
+
+    var urlOverrides =
+            [
+                {
+                    url: "https://someUrl.com/login",
+                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters) {
+                        if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
+                            svc.logger.info("beforeRequest", urlItem.request.url);
+                        }
+                    },
+                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res) {
+                        if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
+                            svc.logger.info("afterRequest:", urlItem.request.url);
+                        }
+                    }
+                },
+                {
+                    url: "https://someUrl.com/users",
+                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters) {
+                        if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
+                            svc.logger.info("beforeRequest", urlItem.request.url);
+                        }
+                    },
+                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res) {
+                        if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
+                            svc.logger.info("afterRequest:", urlItem.request.url);
+                        }
+                    }
+                }
+            ]
+        ;
 
     vuserId = vuser.getVUserId();
 
@@ -63,20 +93,20 @@ exports = module.exports = function (vuser) {
                     fileNameTotest = "har1.har";
                     svc.transaction.start(fileNameTotest);
                     svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies,Parameters);
+                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
                 }/*,
                 f1T: function(callback)
                 {
-                    svc.transaction.thinkTime(fileNameTotest, 1000 * 1, function () {
+                    svc.transaction.thinkTime(fileNameTotest, 1000 * 2, function () {
                         svc.logger.info(" thinkTime %s", fileNameTotest);
                         callback();
                     });
                 },
                 f2: function (callback) {
-                    fileNameTotest = "SomeFIle2";
+                    fileNameTotest = "someFile2.har";
                     svc.transaction.start(fileNameTotest);
                     svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies,Parameters);
+                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
                 },
                 f2T: function(callback)
                 {
@@ -86,10 +116,10 @@ exports = module.exports = function (vuser) {
                     });
                 },
                 f3: function (callback) {
-                    fileNameTotest = "SomeFIle3.har";
+                    fileNameTotest = "someFile3.har";
                     svc.transaction.start(fileNameTotest);
                     svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies,Parameters);
+                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
                 },
                 f3T: function(callback)
                 {
@@ -99,15 +129,22 @@ exports = module.exports = function (vuser) {
                     });
                 },
                 f4: function (callback) {
-                    fileNameTotest = "SomeFIle4.har";
+                    fileNameTotest = "someFile4.har";
                     svc.transaction.start(fileNameTotest);
                     svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies,Parameters);
-                }*/
+                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
+                },
+                 f4T: function(callback)
+                 {
+                 svc.transaction.thinkTime(fileNameTotest, 1000 * 2, function () {
+                 svc.logger.info(" thinkTime %s", fileNameTotest);
+                 callback();
+                 });
+                 }*/
 
             },
             function (err, results) {
-                svc.logger.info('collectedCookies:%s',collectedCookies);
+                svc.logger.info('collectedCookies:%s',JSON.stringify(CollectedCookies.collectedCookies));
                 svc.transaction.end(fileNameTotest, svc.transaction.PASS);
                 svc.transaction.end(BrowserData.name, svc.transaction.PASS);
                 svc.logger.info("going to call Done");
