@@ -22,33 +22,77 @@ exports = module.exports = function (vuser) {
     var BrowserData = {name: "", userAgent: ""};
     var blackListHosts = {};
     var CollectedCookies = {collectedCookies:[]};
-    var Parameters = {};
+    var Parameters = {parameters:{}};
 
     var urlOverrides =
             [
                 {
-                    url: "https://someUrl.com/login",
-                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters) {
+                    url: "https://SomeSite.com/initalPage",
+                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters,reqOpts) {
                         if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
-                            svc.logger.info("beforeRequest", urlItem.request.url);
+                            svc.logger.info("beforeRequest-->", urlItem.request.url);
                         }
                     },
-                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res) {
+                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res, body) {
                         if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
                             svc.logger.info("afterRequest:", urlItem.request.url);
+                            if (undefined!==body.body)
+                            {
+                                //grab authenticity_token (for csrf form submission used in diffrent sites
+                                if (body.body.indexOf("authenticity_token")>=0)
+                                {
+                                    svc.logger.info("body:",body.body.substr(body.body.indexOf("authenticity_token")+56,44));
+                                    Parameters["authenticity_token"] = body.body.substr(body.body.indexOf("authenticity_token")+56,44)
+                                }
+                            }
                         }
                     }
                 },
                 {
-                    url: "https://someUrl.com/users",
-                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters) {
+                    url: "https://SomeOath.com/login", //some oath authentication site/server
+                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters,reqOpts) {
                         if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
-                            svc.logger.info("beforeRequest", urlItem.request.url);
+                            svc.logger.info("beforeRequest-->", urlItem.request.url);
+
+                            reqOpts.body =  "_registrationSiteId=prgrsvp2&emailAddress=" + encodeURIComponent(Parameters["emailAddress"]) + "&password="+ encodeURIComponent(Parameters["password"]) +"&_rememberMe=false&_locale=en_US&client_id=mU5e7Ox2xbYZW6cHgW5GhzNqeiWcHcAc&ux_id=com.somesite.program.rsvp&transactionId=937dd2c1-c7e3-4237-8ef7-082afd088d87&_backendEnvironment=ecn54";
+
                         }
                     },
-                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res) {
+                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res, body) {
                         if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
                             svc.logger.info("afterRequest:", urlItem.request.url);
+                            if (undefined!==body.body)
+                            {
+                                if (body.body.indexOf('access_token":"')>=0)
+                                {
+                                    Parameters["user_Baccess_token"] = body.body.substr((15+body.body.indexOf('access_token":"')),28);
+                                    svc.logger.info("user_Baccess_token:",Parameters["user_Baccess_token"]);
+                                }
+                                if (body.body.indexOf('uuid":"')>=0)
+                                {
+                                    Parameters["user_uuid"] = body.body.substr((7+body.body.indexOf('uuid":"')),7);
+                                    svc.logger.info("user_uuid:", Parameters["user_uuid"]);
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    url: "https://SomeSite.com/users",
+                    beforeRequest: function (svc, urlItem, collectedCookies, Parameters,reqOpts) {
+                        if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
+                            svc.logger.info("beforeRequest-->", urlItem.request.url);
+                            reqOpts.body =  "authenticity_token="+ encodeURIComponent(Parameters["authenticity_token"]) +"&user%5Buuid%5D="+ encodeURIComponent(Parameters["user_uuid"]) +"&user%5Baccess_token%5D="+ encodeURIComponent(Parameters["user_Baccess_token"]) +"";
+                            svc.logger.info("reqOpts",JSON.stringify(reqOpts));
+                        }
+                    },
+                    afterRequest: function (svc, urlItem, collectedCookies, Parameters, res, body) {
+                        if ((undefined !== urlItem) && (undefined !== urlItem.request.url)) {
+                            svc.logger.info("afterRequest:", urlItem.request.url);
+                            if (undefined!==body.body)
+                            {
+                                svc.logger.info("body:",body.body);
+                            }
                         }
                     }
                 }
@@ -61,6 +105,9 @@ exports = module.exports = function (vuser) {
     vuser.init('Vuser init action', function (svc, done) {
         svc.logger.info('Vuser %s init', vuserId);
 
+        // setting user name and password, values can be taken from separate file/can be randomized
+        Parameters.parameters["emailAddress"] = "eyal.fingold@hp.com";
+        Parameters.parameters["password"] = "Nike0123";
         // starting requests in parallel same as browsers actually behave
         var browsersInfo = [
             {browser: "Firefox 31.0", threadsPerDomain: 6, UserAgent: "Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0"},
@@ -89,62 +136,52 @@ exports = module.exports = function (vuser) {
         svc.transaction.start(BrowserData.name);
         var fileNameTotest = "";
         async.series({
-                f1: function (callback) {
-                    fileNameTotest = "har1.har";
-                    svc.transaction.start(fileNameTotest);
-                    svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
-                }/*,
-                f1T: function(callback)
-                {
-                    svc.transaction.thinkTime(fileNameTotest, 1000 * 2, function () {
-                        svc.logger.info(" thinkTime %s", fileNameTotest);
-                        callback();
-                    });
-                },
-                f2: function (callback) {
-                    fileNameTotest = "someFile2.har";
-                    svc.transaction.start(fileNameTotest);
-                    svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
-                },
-                f2T: function(callback)
-                {
-                    svc.transaction.thinkTime(fileNameTotest, 1000 * 2, function () {
-                        svc.logger.info(" thinkTime %s", fileNameTotest);
-                        callback();
-                    });
-                },
-                f3: function (callback) {
-                    fileNameTotest = "someFile3.har";
-                    svc.transaction.start(fileNameTotest);
-                    svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
-                },
-                f3T: function(callback)
-                {
-                    svc.transaction.thinkTime(fileNameTotest, 1000 * 5, function () {
-                        svc.logger.info(" thinkTime %s", fileNameTotest);
-                        callback();
-                    });
-                },
-                f4: function (callback) {
-                    fileNameTotest = "someFile4.har";
-                    svc.transaction.start(fileNameTotest);
-                    svc.logger.info(" going to test %s", fileNameTotest);
-                    harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters,urlOverrides);
-                },
-                 f4T: function(callback)
+                 f1: function (callback) {
+                 fileNameTotest = "har1.har";
+                 svc.transaction.start(fileNameTotest);
+                 svc.logger.info(" going to test %s", fileNameTotest);
+                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
+                 }
+                /*,
+                 f1T: function(callback)
                  {
                  svc.transaction.thinkTime(fileNameTotest, 1000 * 2, function () {
                  svc.logger.info(" thinkTime %s", fileNameTotest);
                  callback();
                  });
-                 }*/
+                 },
+                 f2: function (callback) {
+                 fileNameTotest = "har-files/2-open.har";
+                 svc.transaction.start(fileNameTotest);
+                 svc.logger.info(" going to test %s", fileNameTotest);
+                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
+                 },
+                 f2T: function(callback)
+                 {
+                 svc.transaction.thinkTime(fileNameTotest, 1000 * 2, function () {
+                 svc.logger.info(" thinkTime %s", fileNameTotest);
+                 callback();
+                 });
+                 },
+                 f3: function (callback) {
+                 fileNameTotest = "har-files/3-getStarted.har";
+                 svc.transaction.start(fileNameTotest);
+                 svc.logger.info(" going to test %s", fileNameTotest);
+                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
+                 },
+                 f3T: function(callback)
+                 {
+                 svc.transaction.thinkTime(fileNameTotest, 1000 * 5, function () {
+                 svc.logger.info(" thinkTime %s", fileNameTotest);
+                 callback();
+                 });
+                 },*/
+
 
             },
             function (err, results) {
                 svc.logger.info('collectedCookies:%s',JSON.stringify(CollectedCookies.collectedCookies));
+                svc.logger.info('parameters:%s',JSON.stringify(Parameters.parameters));
                 svc.transaction.end(fileNameTotest, svc.transaction.PASS);
                 svc.transaction.end(BrowserData.name, svc.transaction.PASS);
                 svc.logger.info("going to call Done");

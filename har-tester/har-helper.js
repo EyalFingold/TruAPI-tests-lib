@@ -6,7 +6,6 @@
  * To change this template use File | Settings | File Templates.
  */
 
-
 var cookieParser = require('cookie');
 
 var collectedCookies;
@@ -114,7 +113,7 @@ Array.prototype.get = function (name) {
     }
 };
 
-function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides) {
+function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides) {
     urlList['idx']++;
 
     // need to add URL to Q, capture/build parameters and pass them to next in line
@@ -132,7 +131,7 @@ function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccese
     if ((undefined !== urlItem.request) && (undefined != urlItem.request.method) && (urlItem.request.method === "GET") && (checkIsStaticMimeTypes(mimeType))) {
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count + 1;
         urlCurrentllyProccesed.total = urlCurrentllyProccesed.total + 1;
-        testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+        testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
     }
     else if (urlList['queue'].length > 0) {
         // adding the URL to the queue array
@@ -140,7 +139,7 @@ function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccese
         urlItem['url'] = urlItem.request.url;
         urlList['queue'].push(urlItem);
         urlCurrentllyProccesed.queue++;
-        StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+        StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
     }
     else {
         // Process not static urlItem
@@ -150,11 +149,25 @@ function testUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccese
         urlCurrentllyProccesed.queue++;
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count + 1;
         urlCurrentllyProccesed.total = urlCurrentllyProccesed.total + 1;
-        testNonStaticUrlItem(vThreadNumber, urlList, svc, urlItem.request.url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+        testNonStaticUrlItem(vThreadNumber, urlList, svc, urlItem.request.url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
     }
 }
 
-function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides) {
+function addCookie(collectedCookies, cookie) {
+    var cookieFlag = false;
+    var nameCookie = cookie[0].split(";")[0].split("=")[0];
+    for (var cookieIdx = 0; cookieIdx < collectedCookies.length; cookieIdx++) {
+        if (collectedCookies[cookieIdx][0].indexOf(nameCookie) >= 0) {
+            collectedCookies[cookieIdx] = cookie;
+            cookieFlag = true;
+        }
+    }
+    if (cookieFlag === false) {
+        collectedCookies.push(cookie);
+    }
+}
+
+function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides) {
     var reqOpts;
     svc.logger.info('vThreadNumber:%s, testNonStatic UrlItem URL %s', vThreadNumber, urlItem.request.url);
 
@@ -169,6 +182,7 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
         headers: {
             'User-Agent': BrowserData.userAgent
         },
+
     };
 
     // adding post data if needed
@@ -177,12 +191,20 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
 
     // adding all headrs but User-Agent and Cookies
     for (var i = 0, len = urlItem.request.headers.length; i < len; i++) {
+        if (((undefined !== urlItem.request.headers[i].name)) && ((urlItem.request.headers[i].name === "Accept-Encoding"))) {
+            if (urlItem.request.headers[i].value.indexOf("gzip")>=0)
+            {
+                //TODO: enable gzip once solving the problem of svc.request not ungziping gzip, for now disableing gzip on NON static requests to enable interception of content from body
+                urlItem.request.headers[i].value = "";
+                //reqOpts.gzip = true;
+            }
+        }
         if (((undefined !== urlItem.request.headers[i].name)) && (urlItem.request.headers[i].name !== "User-Agent") && ((urlItem.request.headers[i].name !== "Cookie"))) {
             reqOpts.headers[urlItem.request.headers[i].name] = urlItem.request.headers[i].value;
         }
         else if (((undefined !== urlItem.request.headers[i].name)) && ((urlItem.request.headers[i].name === "Cookie"))) {
 
-            inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCookies, Parameters,urlOverrides);
+            inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCookies, Parameters, urlOverrides);
 
         }
     }
@@ -194,26 +216,27 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
 
         if (undefined !== urlOverrides) {
             for (var urlOverridesIndex = 0, len = urlOverrides.length; urlOverridesIndex < len; urlOverridesIndex++) {
-                if (urlOverrides[urlOverridesIndex].url === urlItem.request.url)
-                    urlOverrides[urlOverridesIndex].beforeRequest(svc, urlItem, collectedCookies, Parameters,urlOverrides);
-
+                if (urlOverrides[urlOverridesIndex].url === reqOpts.url)
+                {
+                    console.log("beforeRequest:", urlItem.request.url);
+                    urlOverrides[urlOverridesIndex].beforeRequest(svc, urlItem, collectedCookies, Parameters, reqOpts);
+                }
             }
         }
-
         svc.request(reqOpts, function (err, res, body) {
             urlCurrentllyProccesed.issuesRequests++;
             if (err) {
-                svc.logger.error('vThreadNumber:%s,request error %s', vThreadNumber, JSON.stringify(err));
+                svc.logger.error('vThreadNumber:%s,request on url %s error %s', vThreadNumber,reqOpts.url, JSON.stringify(err));
             } else if (undefined !== res) {
                 svc.logger.info("vThreadNumber:%s,Processing request for tokens in Cookies...%s", vThreadNumber, reqOpts.url);
 
                 if ((undefined !== res.headers) && (undefined !== res.headers['set-cookie'] )) {
                     svc.logger.info("vThreadNumber:%s,found some cookies%s", vThreadNumber, res.headers['set-cookie']);
-                    collectedCookies.push(res.headers['set-cookie']);
+                    addCookie(collectedCookies, res.headers['set-cookie']);
                 }
                 if ((undefined !== res.headers) && (undefined !== res.headers['Set-Cookie'] )) {
                     svc.logger.info("vThreadNumber:%s,found some cookies%s", vThreadNumber, res.headers['Set-Cookie']);
-                    collectedCookies.push(res.headers['Set-Cookie']);
+                    addCookie(collectedCookies, res.headers['Set-cookie']);
                 }
 
 
@@ -221,7 +244,7 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
                 if (urlItem.response.status === res.statusCode) {
                     svc.logger.info("vThreadNumber:%s,status Response comparison ok", vThreadNumber);
                 }
-                else if ((urlItem.response.status === 304) && (res.statusCode === 200)) {
+                else if (((urlItem.response.status === 304)|| (urlItem.response.status === 302))&& (res.statusCode === 200)) {
                     svc.logger.info("vThreadNumber:%s,status Response comparison ok", vThreadNumber);
                 }
                 else {
@@ -238,27 +261,29 @@ function testNonStaticUrlItem(vThreadNumber, urlList, svc, url, urlItem, urlCurr
                 }
 
                 if (undefined !== urlOverrides) {
-                    for (var urlOverridesIndex = 0, len = urlOverrides.length; urlOverridesIndex < len; urlOverridesIndex++) {
-                        if (urlOverrides[urlOverridesIndex].url === urlItem.request.url)
-                            urlOverrides[urlOverridesIndex].afterRequest(svc, urlItem, collectedCookies, Parameters,urlOverrides);
-
+                    for (var urlOverridesIndex2 = 0, len = urlOverrides.length; urlOverridesIndex2 < len; urlOverridesIndex2++) {
+                        if (urlOverrides[urlOverridesIndex2].url === urlItem.request.url)
+                        {
+                            console.log("afterRequest", urlItem.request.url);
+                            urlOverrides[urlOverridesIndex2].afterRequest(svc, urlItem, collectedCookies, Parameters, urlOverrides, res, body);
+                        }
                     }
-                }
 
+                }
 
                 svc.logger.info('vThreadNumber:%s,After Testing URL %s:%s --> %s', vThreadNumber, reqOpts.method, reqOpts.url, res.statusCode);
             }
-            nonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, collectedCookies, Parameters,urlOverrides, nonStaticCallback, StaticCallback);
+            nonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, collectedCookies, Parameters, urlOverrides, nonStaticCallback, StaticCallback);
         });
     }
     else {
         urlCurrentllyProccesed.skipped++;
         svc.logger.info('vThreadNumber:%s,Skipping URL %s', vThreadNumber, urlItem.request.url);
-        nonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, collectedCookies, Parameters,urlOverrides, nonStaticCallback, StaticCallback);
+        nonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, collectedCookies, Parameters, urlOverrides, nonStaticCallback, StaticCallback);
     }
 }
 
-function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, collectedCookies, Parameters,urlOverrides, nonStaticCallback, StaticCallback, err) {
+function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProccesed, done, BrowserData, collectedCookies, Parameters, urlOverrides, nonStaticCallback, StaticCallback, err) {
     urlCurrentllyProccesed.count = urlCurrentllyProccesed.count - 1;
     var indexOfItem = arrayObjectIndexOf(urlList['queue'], "url", url);
     if (indexOfItem > -1) {
@@ -280,14 +305,14 @@ function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProc
         //urlList['idx']++;
         urlCurrentllyProccesed.count = urlCurrentllyProccesed.count + 1;
         urlCurrentllyProccesed.total = urlCurrentllyProccesed.total + 1;
-        testNonStaticUrlItem(vThreadNumber, urlList, svc, urlItem.request.url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+        testNonStaticUrlItem(vThreadNumber, urlList, svc, urlItem.request.url, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
     }
     else {
         // testing the next Url
         //if ((urlList['idx'] + urlList['queue'].length ) < urlList['len']) {
         if ((urlList['idx']) < urlList['len']) {
             //* test the next url *//
-            testUrlItem(vThreadNumber, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+            testUrlItem(vThreadNumber, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
         }
         else {
             urlCurrentllyProccesed.closedThreads++;
@@ -321,7 +346,7 @@ function checkIsStaticMimeTypes(mimeType) {
     return false;
 }
 
-function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides) {
+function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides) {
     var reqOpts;
     StaticCallback = StaticCallback || function () {
     };
@@ -342,12 +367,18 @@ function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyPr
 
     // adding all headrs but User-Agent and Cookies
     for (var i = 0, len = urlItem.request.headers.length; i < len; i++) {
+        if (((undefined !== urlItem.request.headers[i].name)) && ((urlItem.request.headers[i].name === "Accept-Encoding"))) {
+            if (urlItem.request.headers[i].value.indexOf("gzip")>=0)
+            {
+                reqOpts.gzip = true;
+            }
+        }
         if (((undefined !== urlItem.request.headers[i].name)) && (urlItem.request.headers[i].name !== "User-Agent") && ((urlItem.request.headers[i].name !== "Cookie"))) {
             reqOpts.headers[urlItem.request.headers[i].name] = urlItem.request.headers[i].value;
         }
         else if (((undefined !== urlItem.request.headers[i].name)) && ((urlItem.request.headers[i].name === "Cookie"))) {
 
-            inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCookies, Parameters,urlOverrides);
+            inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCookies, Parameters, urlOverrides);
         }
     }
 
@@ -355,7 +386,6 @@ function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyPr
     if (checkBlackList(urlItem.request.url)) {
         urlCurrentllyProccesed.requests = urlCurrentllyProccesed.requests + 1;
         svc.logger.info('vThreadNumber%s: Testing URL %s:%s %s', vThreadNumber, reqOpts.method, reqOpts.url);
-
 
         svc.request(reqOpts, function (err, res, body) {
             urlCurrentllyProccesed.issuesRequests++;
@@ -366,7 +396,7 @@ function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyPr
                 if (urlItem.response.status === res.statusCode) {
                     svc.logger.info("vThreadNumber%s:status Response comparison ok", vThreadNumber);
                 }
-                else if ((urlItem.response.status === 304) && (res.statusCode === 200)) {
+                else if (((urlItem.response.status === 304)|| (urlItem.response.status === 302))&& (res.statusCode === 200)) {
                     svc.logger.info("vThreadNumber:%s,status Response comparison ok", vThreadNumber);
                 }
                 else {
@@ -384,20 +414,20 @@ function testStaticUrlItem(vThreadNumber, urlList, svc, urlItem, urlCurrentllyPr
 
                 svc.logger.info('vThreadNumber%s:After Testing URL %s:%s --> %s', vThreadNumber, reqOpts.method, reqOpts.url, res.statusCode);
             }
-            StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+            StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
         });
     }
     else {
         svc.logger.info('vThreadNumber%s:Skipping URL %s', vThreadNumber, urlItem.request.url);
         urlCurrentllyProccesed.skipped++;
-        StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+        StaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
     }
 }
 
-function inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCookies, Parameters,urlOverrides) {
+function inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCookies, Parameters, urlOverrides) {
     for (var cookieIdx = 0; cookieIdx < collectedCookies.length; cookieIdx++) {
         var cookieDomain = cookieParser.parse(collectedCookies[cookieIdx][0]).Domain;
-        if (reqOpts.url.indexOf(cookieDomain) >= 0) {
+        if ((undefined === cookieDomain) || (("" === cookieDomain)) || (reqOpts.url.indexOf(cookieDomain) >= 0)) {
             if (undefined !== reqOpts.headers[urlItem.request.headers[i].name])
                 reqOpts.headers[urlItem.request.headers[i].name] = reqOpts.headers[urlItem.request.headers[i].name] + collectedCookies[cookieIdx][0].split(";")[0] + ";"
             else
@@ -408,7 +438,7 @@ function inspectAndAddCookies(svc, urlLists, reqOpts, urlItem, i, collectedCooki
     }
 }
 
-function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides, err) {
+function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides, err) {
     urlCurrentllyProccesed.count = urlCurrentllyProccesed.count - 1;
     if (err) {
         svc.logger.error('Error:%s', JSON.stringify(err));
@@ -421,7 +451,7 @@ function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, n
     if ((urlList['idx']) < urlList['len']) {
 
         //* test the next url *//
-        testUrlItem(vThreadNumber, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+        testUrlItem(vThreadNumber, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, nonStaticCallback, StaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
     }
     else {
         urlCurrentllyProccesed.closedThreads++;
@@ -439,11 +469,11 @@ function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, n
 
 }
 
-function testHost(urlList, svc, done, BrowserData, collectedCookies, Parameters,urlOverrides, urlCurrentllyProccesed) {
+function testHost(urlList, svc, done, BrowserData, collectedCookies, Parameters, urlOverrides, urlCurrentllyProccesed) {
     for (var browsersThreadsidx = 0; browsersThreadsidx < BrowserData.browsersThreads; browsersThreadsidx++) {
         if ((undefined !== urlList[ urlList['idx']]) && ((urlList['idx'] + urlList['queue'].length) < urlList['len'])) {
             svc.logger.info("INIT THREAD _________________________________%d", browsersThreadsidx);
-            testUrlItem(browsersThreadsidx, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onNonStaticCallback, onStaticCallback, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+            testUrlItem(browsersThreadsidx, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onNonStaticCallback, onStaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
         }
         else {
             urlCurrentllyProccesed.closedThreads++;
@@ -451,7 +481,7 @@ function testHost(urlList, svc, done, BrowserData, collectedCookies, Parameters,
     }
 }
 
-function testHARFIle(svc, filename, done, BrowserData, collectedCookies, Parameters,urlOverrides) {
+function testHARFIle(svc, filename, done, BrowserData, collectedCookies, Parameters, urlOverrides) {
     // preparing list for testing
     urlList = {};
     urlLists = {};
@@ -473,13 +503,13 @@ function testHARFIle(svc, filename, done, BrowserData, collectedCookies, Paramet
 
     // code fore testing all host with 1 pull of concurrent connections (for example if authentication is cross hosts )
     svc.logger.info("****************** host: ", 'All', 'len:', urlLists['All']['len'], '*********************');
-    testHost(urlLists['All'], svc, done, BrowserData, collectedCookies, Parameters,urlOverrides, urlCurrentllyProccesed);
+    testHost(urlLists['All'], svc, done, BrowserData, collectedCookies, Parameters, urlOverrides, urlCurrentllyProccesed);
 
 }
 
-exports.testHARFIle = function (svc, filename, done, BrowserData, oblackListHosts, ovuser, collectedCookies, Parameters,urlOverrides) {
+exports.testHARFIle = function (svc, filename, done, BrowserData, oblackListHosts, ovuser, collectedCookies, Parameters, urlOverrides) {
     vuser = ovuser;
     blackListHosts = oblackListHosts;
 
-    testHARFIle(svc, filename, done, BrowserData, collectedCookies, Parameters,urlOverrides);
+    testHARFIle(svc, filename, done, BrowserData, collectedCookies, Parameters, urlOverrides);
 };
