@@ -20,7 +20,7 @@ exports = module.exports = function (vuser) {
     // setting defaults
     var vuserId;
     var BrowserData = {name: "", userAgent: ""};
-    var blackListHosts = {};
+    var blackListHosts = {blackListHosts:{}};
     var CollectedCookies = {collectedCookies:[]};
     var Parameters = {parameters:{}};
 
@@ -125,7 +125,7 @@ exports = module.exports = function (vuser) {
         // get all the blacklist hosts
         blackListHostsFile = 'black-list.json';
         var tmpdata = JSON.parse(harHelper.loadFromFile(blackListHostsFile));
-        blackListHosts = tmpdata.blackListHostNames;
+        blackListHosts.blackListHosts = tmpdata.blackListHostNames;
 
         done();
     });
@@ -140,7 +140,7 @@ exports = module.exports = function (vuser) {
                  fileNameTotest = "har1.har";
                  svc.transaction.start(fileNameTotest);
                  svc.logger.info(" going to test %s", fileNameTotest);
-                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
+                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts.blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
                  }
                 /*,
                  f1T: function(callback)
@@ -154,7 +154,7 @@ exports = module.exports = function (vuser) {
                  fileNameTotest = "har-files/2-open.har";
                  svc.transaction.start(fileNameTotest);
                  svc.logger.info(" going to test %s", fileNameTotest);
-                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
+                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts.blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
                  },
                  f2T: function(callback)
                  {
@@ -167,7 +167,7 @@ exports = module.exports = function (vuser) {
                  fileNameTotest = "har-files/3-getStarted.har";
                  svc.transaction.start(fileNameTotest);
                  svc.logger.info(" going to test %s", fileNameTotest);
-                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
+                 harHelper.testHARFIle(svc, fileNameTotest, callback,BrowserData,blackListHosts.blackListHosts,vuser,CollectedCookies.collectedCookies,Parameters.parameters,urlOverrides);
                  },
                  f3T: function(callback)
                  {

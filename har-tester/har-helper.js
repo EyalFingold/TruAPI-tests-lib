@@ -12,7 +12,7 @@ var collectedCookies;
 
 var urlList;
 
-var urlCurrentllyProccesed = {count: 0, total: 0, requests: 0, queue: 0, issuesRequests: 0, closedThreads: 0, skipped: 0};  //urlList['urlCurrentllyProccesed'];
+var urlCurrentllyProccesed = {count: 0, total: 0, requests: 0, queue: 0, issuesRequests: 0, closedThreads: 0,openThreads:0, skipped: 0};  //urlList['urlCurrentllyProccesed'];
 
 var proxy = process.env.http_proxy ? process.env.http_proxy : undefined;
 
@@ -316,7 +316,8 @@ function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProc
         }
         else {
             urlCurrentllyProccesed.closedThreads++;
-            if ((urlCurrentllyProccesed.count <= 1) && (urlList['queue'].length <= 0) && ((urlCurrentllyProccesed.closedThreads === (BrowserData.browsersThreads)))) {
+            svc.logger.info("closing vThreadNumber%s", vThreadNumber);
+            if ((urlCurrentllyProccesed.count <= 1) && (urlList['queue'].length <= 0) && ((urlCurrentllyProccesed.closedThreads === (urlCurrentllyProccesed.openThreads)))) {
                 svc.logger.info("vThreadNumber:%s,--------------------------------- closing ", vThreadNumber, BrowserData.name);
                 svc.logger.info("vThreadNumber:%s,-------  user %d visited %d urls, %d requests, others were skipped ", vThreadNumber, vuser.getVUserId(), urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
                 svc.logger.info("vThreadNumber:%s,onNONStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber, urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
@@ -324,7 +325,8 @@ function onNonStaticCallback(vThreadNumber, urlList, svc, url, urlCurrentllyProc
                 done(null, null);
             }
             else {
-                svc.logger.info("closing vThreadNumber%s", vThreadNumber);
+                svc.logger.info("vThreadNumber:%s,onNONStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber, urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
+
             }
         }
 
@@ -455,7 +457,8 @@ function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, n
     }
     else {
         urlCurrentllyProccesed.closedThreads++;
-        if ((urlCurrentllyProccesed.count <= 1) && (urlList['queue'].length <= 0) && ((urlCurrentllyProccesed.closedThreads === (BrowserData.browsersThreads)))) {
+        svc.logger.info("closing vThreadNumber%s", vThreadNumber);
+        if ((urlCurrentllyProccesed.count <= 1) && (urlList['queue'].length <= 0) && ((urlCurrentllyProccesed.closedThreads === (urlCurrentllyProccesed.openThreads)))) {
             svc.logger.info("vThreadNumber:%s,--------------------------------- closing ", vThreadNumber, BrowserData.name);
             svc.logger.info("vThreadNumber:%s,-------  user %d visited %d urls, %d requests, others were skipped ", vThreadNumber, vuser.getVUserId(), urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests);
             svc.logger.info("vThreadNumber:%s,onStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber, urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
@@ -463,7 +466,8 @@ function onStaticCallback(vThreadNumber, urlList, svc, urlCurrentllyProccesed, n
             done(null, null);
         }
         else {
-            svc.logger.info("closing vThreadNumber%s", vThreadNumber);
+            svc.logger.info("vThreadNumber:%s,onNONStaticCallback - urlList['len']:%s,urlCurrentllyProccesed.count:%s, BrowserData.browsersThreads:%s, urlList['queue'].length:%s, urlCurrentllyProccesed.total:%s, urlCurrentllyProccesed.requests:%s, urlCurrentllyProccesed.closedThreads:%s,urlList['idx']:%s,urlCurrentllyProccesed.issuesRequests:%s,urlCurrentllyProccesed.skipped:%s ", vThreadNumber, urlList['len'], urlCurrentllyProccesed.count, BrowserData.browsersThreads, urlList['queue'].length, urlCurrentllyProccesed.total, urlCurrentllyProccesed.requests, urlCurrentllyProccesed.closedThreads, urlList['idx'], urlCurrentllyProccesed.issuesRequests, urlCurrentllyProccesed.skipped);
+
         }
     }
 
@@ -473,11 +477,10 @@ function testHost(urlList, svc, done, BrowserData, collectedCookies, Parameters,
     for (var browsersThreadsidx = 0; browsersThreadsidx < BrowserData.browsersThreads; browsersThreadsidx++) {
         if ((undefined !== urlList[ urlList['idx']]) && ((urlList['idx'] + urlList['queue'].length) < urlList['len'])) {
             svc.logger.info("INIT THREAD _________________________________%d", browsersThreadsidx);
+            urlCurrentllyProccesed.openThreads++;
             testUrlItem(browsersThreadsidx, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onNonStaticCallback, onStaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
         }
-        else {
-            urlCurrentllyProccesed.closedThreads++;
-        }
+       
     }
 }
 
@@ -486,7 +489,7 @@ function testHARFIle(svc, filename, done, BrowserData, collectedCookies, Paramet
     urlList = {};
     urlLists = {};
     hosts = [];
-    urlCurrentllyProccesed = {count: 0, total: 0, requests: 0, queue: 0, issuesRequests: 0, closedThreads: 0, skipped: 0};
+    urlCurrentllyProccesed = {count: 0, total: 0, requests: 0, queue: 0, issuesRequests: 0, closedThreads: 0, openThreads:0, skipped: 0};
     // load lists of Urls from HAR file
     loadHarFile(svc, filename, urlList, urlLists, hosts);
 
