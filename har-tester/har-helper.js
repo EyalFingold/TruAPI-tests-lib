@@ -1,9 +1,8 @@
 /**
  * Created with IntelliJ IDEA.
  * User: eyalfingold
- * Date: 12/18/14
- * Time: 2:22 PM
- * To change this template use File | Settings | File Templates.
+ * Date: 01/13/15
+ * Time: 18:35 PM
  */
 
 var cookieParser = require('cookie');
@@ -37,11 +36,15 @@ function loadHarFile(svc, urlListFile, urlList, urlLists, hosts) {
         for (var j = 0; j < urlList.length; j++) {
             svc.logger.info('load url %s - %s', j, urlList[j].request.url);
             var host = urlList[j].request.headers[arrayObjectIndexOf(urlList[j].request.headers, "name", "Host")];
+
+            if (undefined!==urlList[j]){
+                urlLists['All'].push(urlList[j]);
+                urlLists['All']['len']++;
+            }
             if (host !== undefined) {
                 var hostsIndex = hosts.indexOf(host.value);
                 if (hostsIndex !== -1) {
-                    urlLists['All'].push(urlList[j]);
-                    urlLists['All']['len']++;
+
                     urlLists[host.value].push(urlList[j]);
                     urlLists[host.value]['len']++;
                 }
@@ -480,7 +483,7 @@ function testHost(urlList, svc, done, BrowserData, collectedCookies, Parameters,
             urlCurrentllyProccesed.openThreads++;
             testUrlItem(browsersThreadsidx, urlList, svc, urlList[ urlList['idx']], urlCurrentllyProccesed, onNonStaticCallback, onStaticCallback, done, BrowserData, collectedCookies, Parameters, urlOverrides);
         }
-       
+
     }
 }
 
